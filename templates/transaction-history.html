@@ -1,0 +1,50 @@
+{% extends 'base2.html' %}
+{% load static %}
+
+
+{% block title %}
+    Transaction History
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+<div class="row m-4">
+    <table class="table table-hover mt-3">
+        <thead>
+        <tr>
+            <th scope="col"></th>
+            <th scope="col">Date</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Invoice Number</th>
+            <th scope="col">Beneficiary ID</th>
+            <th scope="col">Beneficiary Name</th>
+            <th scope="col">Trans Type</th>
+            <th scope="col">Processed By</th>
+            <th scop="col">Timestamp</th>
+        </tr>
+
+        </thead>
+        {% for transaction in transaction_info %}
+        <tbody id="table-body">
+        <td></td>
+        <td>{{ transaction.transaction_date}}</td>
+        <td>{{ transaction.amount }}</td>
+        <td>{{ transaction.invoiceid }}</td>
+        <td>{{ transaction.vendorid }}</td>
+        <td>{{ transaction.vendorname }}</td>
+        <td>{{ transaction.transaction_type }}</td>
+        <td>{{ transaction.processed_by }}</td>
+        <td>{{ transaction.timestamp }}</td>
+        </tbody>
+        {% endfor %}
+
+    </table>
+    {% include 'partials/transactions/home-page-paginator.html' %}
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra-scripts %}
+    <script src="{% static 'js/process_transaction.js' %}"></script>
+{% endblock %}
