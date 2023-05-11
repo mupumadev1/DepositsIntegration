@@ -7,44 +7,81 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-<div class="row m-4">
-    <table class="table table-hover mt-3">
-        <thead>
-        <tr>
-            <th scope="col"></th>
-            <th scope="col">Date</th>
-            <th scope="col">Amount</th>
-            <th scope="col">Invoice Number</th>
-            <th scope="col">Beneficiary ID</th>
-            <th scope="col">Beneficiary Name</th>
-            <th scope="col">Trans Type</th>
-            <th scope="col">Processed By</th>
-            <th scop="col">Timestamp</th>
-        </tr>
+    <div class="container-fluid">
+        <div class="row m-4">
+        <div class="card">
+            <canvas id="lineGraph" style="height: 250px;"></canvas>
+        </div>
+        <div class="pb-4"></div>
+        <div class="card">
+            <table class="table table-hover mt-3 ">
+                <thead>
+                <tr>
+                    <th scope="col"></th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Invoice Number</th>
+                    <th scope="col">Beneficiary ID</th>
+                    <th scope="col">Beneficiary Name</th>
+                    <th scope="col">Trans Type</th>
+                    <th scope="col">Processed By</th>
+                    <th scop="col">Timestamp</th>
+                </tr>
 
-        </thead>
-        {% for transaction in transaction_info %}
-        <tbody id="table-body">
-        <td></td>
-        <td>{{ transaction.transaction_date}}</td>
-        <td>{{ transaction.amount }}</td>
-        <td>{{ transaction.invoiceid }}</td>
-        <td>{{ transaction.vendorid }}</td>
-        <td>{{ transaction.vendorname }}</td>
-        <td>{{ transaction.transaction_type }}</td>
-        <td>{{ transaction.processed_by }}</td>
-        <td>{{ transaction.timestamp }}</td>
-        </tbody>
-        {% endfor %}
+                </thead>
+                {% for transaction in transaction_info %}
+                    <tbody id="table-body">
+                    <td></td>
+                    <td>{{ transaction.transaction_date }}</td>
+                    <td>{{ transaction.amount }}</td>
+                    <td>{{ transaction.invoiceid }}</td>
+                    <td>{{ transaction.vendorid }}</td>
+                    <td>{{ transaction.vendorname }}</td>
+                    <td>{{ transaction.transaction_type }}</td>
+                    <td>{{ transaction.processed_by }}</td>
+                    <td>{{ transaction.timestamp }}</td>
+                    </tbody>
+                {% endfor %}
 
-    </table>
-    {% include 'partials/transactions/home-page-paginator.html' %}
-
+            </table>
+            {% include 'partials/transactions/home-page-paginator.html' %}
+        </div>
+        </div>
     </div>
-</div>
 {% endblock %}
 
 {% block extra-scripts %}
     <script src="{% static 'js/process_transaction.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Retrieve the data passed from the view
+
+
+            // Create a line graph using Chart.js
+            var ctx = document.getElementById('lineGraph').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [{% for date_list in date_list %}'{{ date_list|safe }}',{% endfor %}],
+                    datasets: [{
+                        label: 'Number of Transactions',
+                        backgroundColor: "#79AEC8",
+                        borderColor: "#417690",
+                        data: [{% for count_list in count_list %}{{ count_list|safe }}, {% endfor %}],
+
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+
+                                suggestedMin: 0,
+                                suggestedMax: 20
+
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 {% endblock %}

@@ -22,7 +22,7 @@ let selectedTransactionType = {};
 
 sessionStorage.clear();
 // Retrieve the checkbox and select values from sessionStorage
-updateTransactionType();
+//updateTransactionType();
 addCheckBoxandSelectValues(transactionType, checkboxes);
 addEventListenerToCheckboxes(checkboxes);
 addEventListenerToSelect(transactionType);
@@ -54,9 +54,14 @@ function addEventListenerToCheckboxes(checkboxes) {
 }
 
 
-function addEventListenerToSelect(transactionType) {
+/*function addEventListenerToSelect(transactionType) {
     transactionType.forEach(transaction => {
         transaction.addEventListener('change', () => {
+            document.querySelectorAll('input[name="transaction"]').forEach(
+                cb=>{
+                    cb.removeAttribute('disabled');
+                }
+            )
             const value = transaction.value;
             const rowId = transaction.closest('tr').id;
             if (value) {
@@ -68,7 +73,32 @@ function addEventListenerToSelect(transactionType) {
         });
     });
 
+}*/
+function addEventListenerToSelect(transactionType) {
+  transactionType.forEach(transaction => {
+    transaction.addEventListener('change', () => {
+      const value = transaction.value;
+      const row = transaction.closest('tr');
+      const inputElement = row.querySelector('input[name="transaction"]');
+
+      if (value) {
+        inputElement.removeAttribute('disabled');
+      } else {
+        inputElement.setAttribute('disabled', 'disabled');
+      }
+
+      const rowId = row.id;
+      if (value) {
+        sessionStorage.setItem(rowId, value);
+      } else {
+        sessionStorage.removeItem(rowId);
+      }
+
+      saveSelectedRows('table-body');
+    });
+  });
 }
+
  function updateTransactionType() {
     const table = document.querySelector("#table-body")
         const rows = table.querySelectorAll('tr');
@@ -318,9 +348,11 @@ modalSubmitBtn.addEventListener('click', (e) => {
                 confirmButtonText: "OK",
                 timer: 2000,
                 text: res.resps,
-            })
+            }).then(() => {
+                window.location.href = 'dashboard';
+            });
         }
-        window.location.href = 'dashboard';
+
     }).catch(err => console.log(err));
 
 });

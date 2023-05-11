@@ -2,10 +2,10 @@
 
 <div class="container pt-5">
     <div class="row mb-3">
-        <div class="col">
+        <div class="col pt-1">
             <form action="">
-                <div class="input-group">
-                    <input type="text" class="form-control w-75" id="search-input"
+                <div class="input-group w-75">
+                    <input type="text" class="form-control" id="search-input"
                            placeholder="Search..." >
                     <button id="search-button" class="btn btn-outline-secondary bg-white border-start-0 border ms-n5"
                             type="button">
@@ -25,7 +25,7 @@
                 </div>
             </form>
         </div>
-        <div class="col ">
+        <div class="col">
             <div class="text-end ">
                 {% if request.path == '/dashboard' %}
                     <!-- Render the "Process Transaction" button -->
@@ -69,7 +69,7 @@
                     <tr id="select-{{ transaction.IDINVC }}">
                         <td>
                             <input type="checkbox" name="transaction" id="transaction-checkbox"
-                                   value="{{ transaction.IDINVC }}">
+                                   value="{{ transaction.IDINVC }}" disabled>
                         </td>
                         <td>{{ transaction.DATERMIT }}</td>
                         <td>{{ transaction.AMTPAYM }}</td>

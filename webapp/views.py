@@ -8,6 +8,8 @@ from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 import requests
@@ -22,7 +24,7 @@ from .models import ProcessedDeposits, BankDetails, Users, UserLoginHistory
 import requests
 import pandas as pd
 
-URL = "http://41.175.13.198:7664/api/json/commercials/zicb/banking"
+URL = "https://41.175.13.198:7664/api/json/commercials/zicb/banking"
 IFT_KEY = "wmdTRHHpCAqgpCMMBfQUGZzpvOaOWmIFuNElwQBeuyyeRfHlRadnHSbMWimMZfPFhKIQEEgFPjkeJgHRwbTErvAZRlLJrVNhqSQRknxXpZhlsdzAuTTZtPZHFJOsvWtIRreHzFjPSEkwmGNdsOCMYipktXBeMkYEoWwFobzrUJRVJXeBWBveZYqirlbVlcwRXDdRJSIoFUMtxjFcbjFvxEKlmVzdjIpGWrqegWDOZQMOqLwSXsdBYjhkvcbQERolchgYpZbrmYRSMUFIHfiSBESXyVIeUAcXAhIcQAAQjWOVoZhuURxJNKRFUNiSMLOnIDwxaesFAwJPuZHbbKeMDxXzRQWaGCoaqKVjZshMpHVcEcncAZeKiioptRnpLAvmGHlrAXxSkaHgpWaqitRvYGOWDDMIxzsccEHpOfwsAfyZpCJyPRcpwiuCUTRRyOspSpWvFVIrHZxnzSizXkkVZtlhPeSYBrxplbhoAFYAPmxaZkAsNjQphlcfwmaZKzWreSkBpbGKrCcllzDcyibtGnbSlqqFZGIWFpokiyKVmcUaHDitetRwNMdksycsCsGTTiNysYVbeqLPFuGPTdrzfsMZZRQkAHqmyuYOMxQeEvpXibFylxPaoeaTXVWAVozTfdSIuufLgoADbvtDTpvpDhMiMcmPIIICEyeHpjyLGGFwqhBeSkVvYuQLSnHnoMlMZwCKRXzCXVjkcxEYCYflOdImrjPlMYzRNQjaCaMhhpBJTWoRDpQGaIhIQcsVAyHMtYIlRwEhGpnXZTFxshsxyDTBHPxaSKoPuHejMLQYIXyiMLtPfFJfZXYNAXfDXstXEBIHgqvYZAlogYbMPVIkDCceNNuaxkrRTAtcZGESKsRuPGOrukdHkdGaAGsbTSAgLXZmCkowppFOWZjgIJPiySyeeQOIQOfmcEyPWpByRBUxGmCnuOFbmbXEUBuuROdJsCKhfuaGIavHBUBdUuuhwuwEUOXYYwGmTEXXmVXRZrJLsDruGoYpYmTAcciUWMssQQRDEPhhuCEAkUZlfYoNkqUadbgEEzvJTQTkVPbeFnsoCPWKBEYeAqiwYpunQaLiUBpTMEuLGicQRgNnLvxbvJbKLYTxr"
 DDAC_KEY = "DdzDsZAhnpCBYdYIjTMGnwLkCdjUSqXKtPNBtnEggTpXMjVFPZRKplbvkxDcXkAdgZaaHMmZWfMvtixnOpjpgLTltGlBsnaUwfsoqXMaFNOudDUAJOCukUnnuEbAgLyqqkevkoOWcrSiUeXkTzHcmiNhoiIcTeTxwgUMvOUxPqXdFVXGjPRKRRRlOtaLibcMYOIPcIVgQwgNuLcbRAEzvIoFyHphPWZxIUmZLWQDLQdjjZNzfuwLyecspNCZKTjIPhbFbHKERezyxEBbUGMuLltbeyDVpxoAGtaWEHyrhpJxVkATMOEwuNHTNfKeioLNeHhwauJWjLnqeNlbrvZYLcYqAxIieOiuqFxKLOIhnFsoXtEZlJoYmUlrCSZPZpAzfGtOCjmHCksctYwepNVXCZEScYnbskmdqHWyZkSNgMzYceRkkbxnbzgmpSiUJpyEWjBNbNZiPbbENkwhKtHAVJKzPJpzrGvLWwPKGUdXkPpMMbZVlNZGeAOcQBLEnHiLSpfcVrpKoIUYBFKvhUNKVXeMmEmQUCpciEtAZwUdfPyKOheYdtQFXbklwppeFEeOVnqQBgHhTCZlNbETHSdSYLihxOjqDeBRsfVzrdTwiSTVvkSJxbBEuuRcbZCYJOOUtyTjcpNEVdKvHJirRLfoSOltxNQFTGMtCJTqnaeEZFSSIbHyjaDVeJyfHilqlpysiDEKRFawquymCzHTSckbQYrHNjdfoMXFUVYYTFExtEHkGjLZAXplCVDMRIJkxBOFqksPddOGfaUMQdEYUGjCNxVdjpYKPcSXDVJGhXRkyikoAiBiKOGipzSJowglSvjUQtqoqBUswPTUxsPTfOIUTpXIrdghCmSjFpKLKWndmuiXpawEjVYbwBDaVdqGoYqNrxfpjkYspZoJrNMpNGPBhlvQMJJtgajNhHyOHtUqhTEPwDaVVuYdWsBmLlWCeEBqpyHPnwkGHJzrDieaSqoYHnpXtosFCIATDeTSZepebGcNbMCAjmfThNvUVoOGXaYOIXCKsUCdqDnpMolNEZUWLJhHFTpahUmUXvvuxtxyepgyhJRjEhDsISFENzkUkFxyKptCdjPePLaLjnXPFweLBUMUIuyBl"
 API_KEY = "jVKRmqnoqsmoMXfhgaEjeXKctmtWdMpaPKINOfaiglVaWkVraFYngtYcfspiitZIcKjfZUwPTPHRNUrIgdiAyqpgplQFDJYwDCvzdUnnxalobZxzOCMWVKhVQZYiEfukQUCTeXOhKAIXTWSLszsFmuwZAGwTmpBUTjraYerObIOEAJbmEffhhxRgsglFAPPkKVCIzNkyzCaMxyIuNVdjHURqzqimwoPfkugKrgBNCTOZWYrUVyXKbGaeUayugjUFfbdboEOwipAQxQgTDrfpBGcSVELjqtrqTtlElIShCwUErSqvZVGneqWXEvuRwOqbVtJSbqZyReGCpRyXaivqoDSycUpDYnSymrcwQBDSTZRVIKALobWZxHQpVeTCfEhqDqfMydQqVjRpSaljyIRoIXDkhqhuEsZWVKZmgcbPxvTPSAuCoIvYfjdoFRZVemldnYZctyjTUTtmfiQQPRibOHwVEbstjZacCLHwgXPxtzRtdSypEjJcdkCUnfulNPtlSheLzNgtpAdQjWcuruYNtIgreCZELvbYxxYDlwWIngVmuzLTERviDjwYjeaeVnJxWecdIeLylpLKNHPobrXnJBltzgknhsqdKlKtoRqQobuvoCGVySOoTDPFhzjjeZGscCOvgKecixZdgXrRnghhsCuefYzgiCrHzmAaObiHIKPWxuFJkBaXxhNYOjSVyUmOFIxIkdeJSNDAIGldCMuUsExwPhoIrjcoACqLuUxvTlnGKpXrpCZhkbsUtUiCnLOtzZhjjFbrXxZSNPwOcCuLTCqzgxnBZrCcBEOevMIaRutODtwpJiRZGqpdQziPNyVwVdLxBwsZpZcVUAgTKjjaHHBFfFXtVrakSIosGVlQILvLiVgLgtFVXaEPwIdpCBuAJRpsRkoFUHKXVoiKFiLGsQaXxxiMCNdFcDVwrlYIiPxwKjbMptVUrPijJHbMYXHHppplksabPCparawfDYUwVIHVlgJZDceJOWfJdSWzUOfvrHUiFrAzrbSQmWrVEPhOpMmErnYBBfvxBPEWMeDkhzqTpbOCYHDfxGPJDiAVAMOcXKvOWIFzGQmZCaeMbRHXLNiANlbXYZprypSTIuJziqwUPctZL"
@@ -53,7 +55,7 @@ def UserLogin(request):
                 }
             }
 
-            resp = requests.post(url=URL, headers=transaction_headers, json=json)
+            resp = requests.post(url=URL, headers=transaction_headers, json=json, verify=False)
             resp = resp.json()
             print(resp)
             if resp['response']['otpEnable']:
@@ -61,7 +63,7 @@ def UserLogin(request):
                     "service": "CORE_BANKING_GENERATE_OTP",
                     "request": {}
                 }
-                response = requests.post(url=URL, headers=transaction_headers, json=json)
+                response = requests.post(url=URL, headers=transaction_headers, json=json, verify=False)
                 response = response.json()
                 print(response)
                 if response['response']['otpEnable']:
@@ -89,7 +91,7 @@ def enterOTP(request):
             }
         }
         cache.set(request.user.username, otp, timeout=600)  # set the OTP with a timeout of 300 seconds
-        resp = requests.post(url=URL, headers=transaction_headers, json=json)
+        resp = requests.post(url=URL, headers=transaction_headers, json=json, verify=False)
         resp = resp.json()
         print(resp)
         if resp['response']['message'] == "Success":
@@ -241,7 +243,8 @@ def bankUploadViaForm(request):
                     return render(request, 'account-details.html', {'form': form})
                 vendor = form.save(commit=False)
                 sort_code = form.clean_sort_code()
-                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}})
+                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
+                                     verify=False)
                 resp = resp.json()
                 if resp['operation_status'] == 'SUCCESS':
                     resp = resp['response']['bankList']
@@ -270,7 +273,8 @@ def editBankUploadViaForm(request, acc_id):
                 return render(request, 'account-details.html', {'form': form})
             vendor = form.save(commit=False)
             sort_code = form.clean_sort_code()
-            resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}})
+            resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
+                                 verify=False)
             resp = resp.json()
             if resp['operation_status'] == 'SUCCESS':
                 resp = resp['response']['bankList']
@@ -329,7 +333,8 @@ def bankUploadCSV(request):
                 bank_name = ''
                 branch = ''
                 sort_code = row['Sort Code'],
-                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}})
+                resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
+                                     verify=False)
                 resp = resp.json()
                 if resp['operation_status'] == 'SUCCESS':
                     resp = resp['response']['bankList']
@@ -480,7 +485,20 @@ def transaction_history(request):
     paginator = Paginator(data, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    return render(request, "transaction-history.html", {'transaction_info': page_obj})
+
+    end_date = datetime.datetime.now().date()
+    start_date = end_date - datetime.timedelta(days=30)
+
+    processed_deposits = ProcessedDeposits.objects.filter(
+        timestamp__range=(start_date, end_date)
+    ).annotate(trans_date=TruncDate('timestamp')).values('trans_date').annotate(count=Count('trans_date'))
+
+    # Prepare the data for the line graph
+    date_list = [deposit['trans_date'].strftime('%Y-%m-%d') for deposit in processed_deposits]
+    count_list = [deposit['count'] for deposit in processed_deposits]
+    print(date_list,count_list)
+    return render(request, "transaction-history.html",
+                  {'transaction_info': page_obj, 'date_list': date_list, 'count_list': count_list})
 
 
 def checkAccNumber(request):
@@ -492,7 +510,7 @@ def checkAccNumber(request):
         }
     }
     response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": INFO_KEY},
-                             json=data)
+                             json=data, verify=False)
     response = response.json()
     account_list = response['response']['accountList']
     return JsonResponse({'resp': list(account_list)})
@@ -532,7 +550,7 @@ def postDDACTransaction(request, transaction_dict):
     print(data)
     response = requests.post(url=URL,
                              headers={"Content-Type": "application/json; charset=utf-8", "authkey": DDAC_KEY},
-                             json=data)
+                             json=data, verify=False)
 
     resp_json = response.json()
     print(resp_json)
@@ -580,7 +598,7 @@ def postRTGSTransaction(request, transaction_dict):
 
     response = requests.post(url=URL,
                              headers={"Content-Type": "application/json; charset=utf-8", "authkey": API_KEY},
-                             json=data)
+                             json=data, verify=False)
 
     resp_json = response.json()
     print(resp_json)
@@ -623,7 +641,7 @@ def postFTTransaction(request, transaction_dict):
         }
     }
     response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
-                             json=json)
+                             json=json, verify=False)
     resp_json = response.json()
     response = resp_json['response']
     if 'status' in response:
@@ -642,12 +660,14 @@ def postFTTransaction(request, transaction_dict):
             }
         }
     resp = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
-                         json=ft_confirm_json)
+                         json=ft_confirm_json, verify=False)
     ft_resp_json = resp.json()
     print(ft_resp_json)
     if ft_resp_json['response']['message'] == "Fund Transfer initiated successfully":
-        processed = ProcessedDeposits(vendorid=transaction_dict['account_name'],
+        processed = ProcessedDeposits(vendorid=transaction_dict['account_name'], amount=transaction_dict['amtpaym'],
                                       invoiceid=transaction_dict['invoice_id'], status=1,
+                                      vendorname=transaction_dict['account_name'],
+                                      transaction_date=transaction_dict['date'],
                                       transaction_type="IFT", processed_by=request.user.username)
         processed.save()
         return ft_resp_json['response']['message'], 200
