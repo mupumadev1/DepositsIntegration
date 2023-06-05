@@ -16,7 +16,7 @@ engine = sqlalchemy.create_engine(
 msengine = sqlalchemy.create_engine(
     "mssql+pyodbc://saservice:mJ%40PcJ%21pNVs2%2AAW@10.52.11.50:1433/TSTDAT?driver=ODBC+Driver+17+for+SQL+Server")
 metadata = MetaData()
-metadata.reflect(msengine, only=['APPYM', 'APTCRO', 'ELVEND', 'APTCR'])
+metadata.reflect(msengine, only=['APPYM', 'APVEN', 'APTCR'])
 MS_Base = automap_base(metadata=metadata)
 Base.prepare(autoload_with=engine)
 MS_Base.prepare()
@@ -24,15 +24,14 @@ MS_Base.prepare()
 ms_session = Session(msengine, autoflush=False)
 session = Session(engine)
 
-elvend = MS_Base.classes.ELVEND
-aptcro = MS_Base.classes.APTCRO
+
 appym = MS_Base.classes.APPYM
 aptcr = MS_Base.classes.APTCR
+apven = MS_Base.classes.APVEN
 payments = Base.classes.payment_transaction
 
 
-# payment_errors = Base.classes.emailRecord
-# banklist = Base.classes.bankList
+
 
 def get_ip_address(request):
     user_ip_address = request.META.get('HTTP_X_FORWARDED_FOR')

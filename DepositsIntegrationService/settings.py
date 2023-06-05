@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
@@ -26,7 +25,6 @@ SECRET_KEY = 'django-insecure-!7vtm9m)$#foc4wrowfn15w1v*o_v@l44gg)20nk!pi_g6(alt
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -53,13 +51,20 @@ MIDDLEWARE = [
     "django_htmx.middleware.HtmxMiddleware",
 ]
 
+
+
+SESSION_COOKIE_AGE = 1200  # 5 minutes
+
+# Set the session cookie secure flag if your site is served over HTTPS
+SESSION_COOKIE_SECURE = True
+LOGIN_URL = '/'
 ROOT_URLCONF = 'DepositsIntegrationService.urls'
 
 AUTH_USER_MODEL = 'webapp.Users'
 
 AUTHENTICATION_BACKENDS = [
-    'webapp.myauthBackend.UserAuthBackend',]
-
+    'webapp.myauthBackend.UserAuthBackend',
+]
 
 TEMPLATES = [
     {
@@ -80,7 +85,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'DepositsIntegrationService.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
@@ -90,12 +94,11 @@ DATABASES = {
         'NAME': 'deposits_integration',
         'USER': 'saservice',
         'PASSWORD': 'mJ@PcJ!pNVs2*AW',
-        'HOST':'10.51.11.183',
+        'HOST': '10.51.11.183',
         'PORT': '3306'
 
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -115,7 +118,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -126,7 +128,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/

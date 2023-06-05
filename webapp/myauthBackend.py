@@ -1,18 +1,15 @@
 from django.contrib.auth.backends import BaseBackend
-
 from .models import Users
 
 
 class UserAuthBackend(BaseBackend):
-    def authenticate(self, request, username=None, password=None):
-        """
-        Overrides the authenticate method to allow users to log in using their email address.
-        """
+    def authenticate(self, request, username=None, password=None, **kwargs):
         try:
             user = Users.objects.get(username=username)
-            if user:
+            if user and user.role == '002':
                 return user
-            return None
+            elif user.role != '002' and user.check_password(password):
+                return user
         except Users.DoesNotExist:
             return None
 

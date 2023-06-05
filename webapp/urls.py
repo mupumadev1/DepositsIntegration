@@ -13,6 +13,8 @@ urlpatterns = [
     path('account_number/',views.checkAccNumber,name='check-account-number'),
     path('enter_otp/',views.enterOTP, name = 'enter-otp'),
     path('forgot_password',views.forgotPassword, name = 'forgot-password'),
+    path('role/', views.checkUserRole),
+    path('account_details/', views.vendor_account_details),
     path('dashboard',views.homepage, name='homepage'),
     path('bank_details/edit/<str:acc_id>/',views.editBankUploadViaForm,name='edit-bank-details'),
     path('bank_details/upload/',views.bankUploadViaForm, name='upload-bank-details'),

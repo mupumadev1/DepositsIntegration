@@ -1,17 +1,11 @@
 const processBtn = document.getElementById('process-btn');
 const searchBtn = document.getElementById('search-button');
 const modalSubmitBtn = document.getElementById('modal-submit-btn');
-
+const loader = document.getElementById('spinner')
+const rows = document.querySelectorAll('#table-body tr');
 const checkboxes = document.querySelectorAll('input[type="checkbox"]');
 const searchInput = document.getElementById('search-input');
 const filterOptions = document.getElementById('filter-options');
-const transactionType = document.querySelectorAll('select[name="transaction_type"]');
-
-const nextPageLink = document.getElementById('next');
-const lastPageLink = document.getElementById('last');
-const previousPageLink = document.getElementById('previous');
-const firstPageLink = document.getElementById('first');
-const currentPage = document.getElementById('current');
 
 let selectedVendorsInvoiceNumber = [];
 let selectedPageNumber = 1;
@@ -20,114 +14,182 @@ let hasClickedOnSearchBtn = false;
 let query_params = [];
 let selectedTransactionType = {};
 
+
+let combinedValues = [];
 sessionStorage.clear();
-// Retrieve the checkbox and select values from sessionStorage
-//updateTransactionType();
-addCheckBoxandSelectValues(transactionType, checkboxes);
+
+addCheckBoxandSelectValues(rows);
 addEventListenerToCheckboxes(checkboxes);
-addEventListenerToSelect(transactionType);
 addEventListenerToAnchorTag();
+addEventListenersToSelect(rows)
+
+function addEventListenersToSelect(rows) {
+    rows.forEach(row => {
+        const selectTags = row.querySelectorAll('select');
+        selectTags.forEach(select => {
+            select.addEventListener('change', () => {
+                updateTransactionType(selectTags[0]);
+                const accountName = selectTags[0].value;
+                const transactionType = selectTags[1].value;
+
+                const trow = select.closest('tr');
+                const inputElement = trow.querySelector('input[name="transaction"]');
+                const value = inputElement.value;
+                if (transactionType && accountName) {
+                    if (value) {
+                        inputElement.removeAttribute('disabled');
+                    } else {
+                        inputElement.setAttribute('disabled', 'disabled');
+                    }
+                    sessionStorage.setItem("accountName-" + value, accountName);
+                    sessionStorage.setItem("transactionType-" + value, transactionType);
+                    console.log(sessionStorage)
+                } else {
+                    sessionStorage.removeItem("accountName-" + value);
+                    sessionStorage.removeItem("transactionType-" + value);
+                }
+            });
+        });
+    });
+}
+
+function addCheckBoxandSelectValues(rows) {
+    rows.forEach(row => {
+        const value = row.id;
+        const inputElement = row.querySelector('input[name="transaction"]');
+        const selectTags = row.querySelectorAll('select');
+        const accountName = sessionStorage.getItem("accountName-" + value);
+        const transactionType = sessionStorage.getItem("transactionType-" + value);
+        const checkbox = sessionStorage.getItem(value)
+        if (accountName && transactionType) {
+            if (checkbox) {
+                inputElement.checked = true
+            }
+            selectTags[0].value = accountName;
+            selectTags[1].value = transactionType;
+            inputElement.removeAttribute('disabled');
+        } else {
+            selectTags[0].value = ''; // Reset the select values if not found in sessionStorage
+            selectTags[1].value = '';
+            inputElement.setAttribute('disabled', 'disabled');
+        }
+    });
+}
+
 
 function addEventListenerToCheckboxes(checkboxes) {
-    /**
-     * Add event listener to checkboxes
-     * if checked the checkbox value added to sessionStorage and VendorInvoiceNumber array, process button disabled
-     * when unchecked checkbox value removed from sessionStorage and VendorInvoiceNumber array
-     */
     checkboxes.forEach(cb => {
         cb.addEventListener('change', () => {
             if (cb.checked) {
+                const row = cb.closest('tr');
+                const rowData = {
+                    values: [],
+                };
+                // Iterate over each cell
+                for (let j = 0; j < row.cells.length; j++) {
+                    const cell = row.cells[j];
+
+                    if (j === 6) {
+                        const select = cell.querySelector('.form-select');
+                        fetch(`account_details/?account_name=${select.value}`)
+                            .then(response => response.json())
+                            .then(res => {
+
+                                rowData.values.push(res.account_details[0].account_no);
+                                rowData.values.push(res.account_details[0].sort_code);
+                                rowData.values.push(res.account_details[0].bicCode);
+                                rowData.values.push(res.account_details[0].bank_name);
+                            });
+                        rowData.values.push(select.value);
+                    } else if (j === 7) {
+                        const select = cell.querySelector('.form-select');
+                        rowData.values.push(select.value);
+                    } else {
+                        // Handle text cells
+                        rowData.values.push(cell.textContent);
+                    }
+                }
+                // Add the row data to the combined values array
+                if (!combinedValues.some(item => JSON.stringify(item) === JSON.stringify(rowData))) {
+                    combinedValues.push(rowData);
+                    processBtn.removeAttribute('disabled')
+                    //console.log(combinedValues[0].values[0]);
+                }
                 const value = cb.value;
-                const checked = cb.checked
+                const checked = cb.checked;
                 addSelectedVendorsInvoiceNumber(cb.value);
                 sessionStorage.setItem(value, checked);
                 saveSelectedRows('table-body');
-            } else {
-                const value = cb.value;
-                selectedVendorsInvoiceNumber = selectedVendorsInvoiceNumber.filter(vendor => vendor !== value);
-                sessionStorage.removeItem(value);
             }
-            const isChecked = Array.from(checkboxes).some(cb => cb.checked);
-            processBtn.disabled = !isChecked;
-        });
+        })
+    })
+}
+
+var isScrolledToTop = true;
+
+function scrollToTopOrBottom() {
+    if (isScrolledToTop) {
+        scrollToBottom();
+        isScrolledToTop = false;
+    } else {
+        scrollToTop();
+        isScrolledToTop = true;
+    }
+}
+
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth" // Optional: Add smooth scrolling animation
     });
 }
 
-
-/*function addEventListenerToSelect(transactionType) {
-    transactionType.forEach(transaction => {
-        transaction.addEventListener('change', () => {
-            document.querySelectorAll('input[name="transaction"]').forEach(
-                cb=>{
-                    cb.removeAttribute('disabled');
-                }
-            )
-            const value = transaction.value;
-            const rowId = transaction.closest('tr').id;
-            if (value) {
-                sessionStorage.setItem(rowId, value);
-            } else {
-                sessionStorage.removeItem(rowId);
-            }
-            saveSelectedRows('table-body');
-        });
+function scrollToBottom() {
+    window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "smooth" // Optional: Add smooth scrolling animation
     });
-
-}*/
-function addEventListenerToSelect(transactionType) {
-  transactionType.forEach(transaction => {
-    transaction.addEventListener('change', () => {
-      const value = transaction.value;
-      const row = transaction.closest('tr');
-      const inputElement = row.querySelector('input[name="transaction"]');
-
-      if (value) {
-        inputElement.removeAttribute('disabled');
-      } else {
-        inputElement.setAttribute('disabled', 'disabled');
-      }
-
-      const rowId = row.id;
-      if (value) {
-        sessionStorage.setItem(rowId, value);
-      } else {
-        sessionStorage.removeItem(rowId);
-      }
-
-      saveSelectedRows('table-body');
-    });
-  });
 }
 
- function updateTransactionType() {
-    const table = document.querySelector("#table-body")
-        const rows = table.querySelectorAll('tr');
-        rows.forEach(row => {
-            const accountNumber = row.querySelector('#acc_no').textContent;
-            fetch(`account_number/?acc_no=${accountNumber}`)
+function updateTransactionType(select) {
+    const rows = select.closest('tr');
+    console.log(rows)
+
+    fetch(`account_details/?account_name=${select.value}`)
+        .then(response => response.json())
+        .then(res => {
+            const accountNo = res.account_details[0].account_no;
+            fetch(`account_number/?acc_name=${accountNo}`)
                 .then(data => data.json())
                 .then(d => {
                     if (d.resp.length === 0) {
-                        const transaction_type = row.querySelectorAll('select[name="transaction_type"]');
-                        transaction_type.forEach(t => {
-                            const option = t.querySelectorAll('option')
-                            option.forEach(opt => {
-                                if (opt.value === 'IFT') {
-                                    opt.classList.add('d-none')
+                        const selectTags = rows.querySelectorAll('select');
+                        transType = selectTags[1]
+                        const options = transType.querySelectorAll('option');
+
+                        options.forEach(option => {
+                            if (option.value === 'IFT') {
+                                option.disabled = true;
+                                if (transType.value === 'IFT') {
+                                    transType.value = '';
                                 }
-                            })
+                            }
                         });
-                    }
+
+
+                        };
                 });
-        });
-    }
+        })
+
+
+}
+
+
 function addSelectedVendorsInvoiceNumber(invoiceId) {
-    /**
-     * Add selected vendors to array
-     */
+
     if (!selectedVendorsInvoiceNumber.includes(invoiceId)) {
         selectedVendorsInvoiceNumber.push(invoiceId);
-        console.log(selectedVendorsInvoiceNumber);
+
     }
 }
 
@@ -137,107 +199,40 @@ function saveSelectedRows(tableID) {
             let cb = row.querySelector('td input[type="checkbox"]')
             if (cb.checked) {
                 let transactionType = row.querySelector('td select[name="transaction_type"]').value;
+                // let accountName = row.querySelector('td select[name="account_name"]').value;
 
+                //selectedAccountName[cb.value] = accountName;
                 selectedTransactionType[cb.value] = transactionType;
+                console.log(selectedTransactionType)
             }
         }
     )
 }
 
-function createTableBody(transactionInfo, vendorInfo, tableBodyID) {
-    /**
-     * Create new table body elements and add them to the table body
-     * @param {Array} transactionInfo - Array of transaction objects
-     * @param {Array} vendorInfo - Array of vendor objects
-     * @param {String} tableBodyID - ID of table body element
-     */
+function createModalTableBody(tableBodyID) {
 
     let tableBody = document.getElementById(tableBodyID);
     tableBody.innerHTML = '';
-
-    // Add new transactions
-    if (transactionInfo.length > 0) {
-        for (transaction of transactionInfo) {
-
-            transaction = JSON.parse(transaction);
-            const tr = document.createElement('tr');
-            tr.setAttribute("id", "select-" + transaction.IDINVC);
-            tr.innerHTML = `
-             <td>
-                 <input type="checkbox" name="transaction" id="transaction-checkbox" value="${transaction.IDINVC}">
-            </td>
-            <td>${transaction.DATERMIT}</td>
-            <td>${transaction.AMTPAYM}</td>
-            <td>${transaction.IDINVC}</td>
-            <td>${transaction.IDVEND}</td>
-      `;
-            for (vendor of vendorInfo) {
-                if (transaction.IDVEND === vendor.vendor_id) {
-                    tr.innerHTML += `
-            <td>${vendor.account_name}</td>
-            <td id="acc_no">${vendor.account_no}</td>
-            <td>${vendor.sort_code}</td>
-          `;
-                }
-            }
-            tr.innerHTML += `
-                <td>
-            <select class="form-select form-select-sm" name="transaction_type">
-            <option>---</option>
-            <option value="IFT" >INTERNAL FUNDS TRANSFER</option>
-            <option value="DDAC">DDAC</option>
-            <option value="RTGS">RTGS</option>
-            </select>
-        </td>`
-
-
-            tableBody.appendChild(tr);
-        }
-
-    } else {
+    combinedValues.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-      <td colspan="8" class="text-center">No transactions found</td>
-    `;
+            <td>${item.values[1]}</td>
+            <td>${item.values[2]}</td>
+            <td>${item.values[3]}</td>
+            <td>${item.values[4]}</td>
+            <td>${item.values[5]}</td>
+            <td>${item.values[6]}</td>
+            <td>${item.values[7]}</td>
+            <td>${item.values[8]}</td>
+            <td>${item.values[9]}</td>
+            <td>${item.values[10]}</td>`
+
+
         tableBody.appendChild(tr);
-    }
-
-
-}
-
-function addCheckBoxandSelectValues(transactionType, checkboxes) {
-    checkboxes.forEach(checkbox => {
-        const value = checkbox.value;
-        const checked = JSON.parse(sessionStorage.getItem(value));
-
-        // If the checkbox was checked before, set it to checked
-        if (checked) {
-            checkbox.checked = true;
-        }
-    });
-    transactionType.forEach(transaction => {
-        const rowId = transaction.closest('tr').id;
-        const selectValue = sessionStorage.getItem(rowId);
-        // Set the select tag to the previous value if it exists
-        if (selectValue) {
-            transaction.value = selectValue;
-        }
     })
 
 }
 
-function addEventListenersAndPopulateFields() {
-    /**
-     *  Get all checkboxes, add event listener to them and check if they are checked or not
-     */
-    let checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    let transactionType = document.querySelectorAll('select[name="transaction_type"]');
-
-    addEventListenerToSelect(transactionType);
-    addEventListenerToCheckboxes(checkboxes);
-    addCheckBoxandSelectValues(transactionType, checkboxes);
-    console.log(sessionStorage)
-}
 
 // handles the click even of the anchor tags
 function handleClick(event) {
@@ -246,18 +241,7 @@ function handleClick(event) {
     fetch(url)
         .then(response => response.text())
         .then(html => {
-            const parser = new DOMParser();
-            const newDoc = parser.parseFromString(html, 'text/html');
-            const newSelect = newDoc.querySelectorAll("select[name='transaction_type']");
-            const newCheckboxes = newDoc.querySelectorAll('input[type="checkbox"]');
-            addCheckBoxandSelectValues(newSelect, newCheckboxes);
-            addEventListenerToSelect(newSelect);
-            addEventListenerToCheckboxes(newCheckboxes)
-            const newTable = newDoc.getElementById('table-body')
-            const newPaginator = newDoc.getElementById('paginator');
-            document.getElementById('table-body').replaceWith(newTable);
-            document.getElementById('paginator').replaceWith(newPaginator);
-            updateTransactionType();
+            updateTableAndPaginator(html)
             addEventListenerToAnchorTag();
         });
 }
@@ -276,61 +260,89 @@ function removeEventListenerFromAnchorTag() {
     });
 }
 
-async function searchDatabase(searchParams, filterOptions) {
-    /**
-     * Send request to database to search for vendor transactions
-     * and vendor information that matches the search parameters
-     * @param {String} searchParams - String containing search parameters
-     * @param {String} filterOptions - String containing filter options
-     * @return {Array} - Object containing transaction info and vendor info
-     * */
+function updateTableAndPaginator(html) {
+    const parser = new DOMParser();
+    const newDoc = parser.parseFromString(html, 'text/html');
 
-        // Send ajax request to server to retrieve matching vendors
-    const res = await fetch(`search/?search_params=${searchParams}&filter_options=${filterOptions}&page_number=1`);
+    const newRow = newDoc.querySelectorAll("#table-body tr");
+    const newCheckboxes = newDoc.querySelectorAll('input[type="checkbox"]');
 
-    return await res.json();
+    addCheckBoxandSelectValues(newRow);
+    addEventListenersToSelect(newRow);
+    addEventListenerToCheckboxes(newCheckboxes);
+
+    const newTable = newDoc.getElementById('table-body');
+    const newPaginator = newDoc.getElementById('paginator');
+    document.getElementById('table-body').replaceWith(newTable);
+    document.getElementById('paginator').replaceWith(newPaginator);
+
+    // Add any other necessary post-update operations
 }
 
 searchBtn.addEventListener('click', (e) => {
     e.preventDefault();
     hasClickedOnSearchBtn = true;
+    query_params = [searchInput.value, filterOptions.value];
 
-    // Query the database for the specified search parameters
-    let queryResults = searchDatabase(searchInput.value, filterOptions.value);
+    fetchSearchResults(query_params, selectedPageNumber);
+})
 
-    // Display the results in the table body
-    queryResults.then((data) => {
-        createTableBody(data.transaction_info, data.vendor_info, 'table-body');
-        removeEventListenerFromAnchorTag();
-        addEventListenersAndPopulateFields()
-        numberOfPages = data.number_of_pages;
-        currentPage.textContent = `Showing 1 of ${numberOfPages} Pages.`;
-        query_params = [searchInput.value, filterOptions.value]
-        checkIfFirstPage();
-        checkIfLastPage();
-        checkIfPageHasNextOrPreviousPage();
-        updateTransactionType();
+function fetchSearchResults(queryParams, page) {
+    const searchInput = queryParams[0];
+    const filterOptions = queryParams[1];
 
+    fetch(`search/?search_params=${searchInput}&filter_options=${filterOptions}&page=${page}`)
+        .then(response => response.text())
+        .then(html => {
+            // Parse the HTML response
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(html, 'text/html');
 
-    }).catch((err) => {
-        console.log(err)
-    });
-});
+            // Get the new HTML elements
+            const newRow = newDoc.querySelectorAll("#table-body tr");
+            const newCheckboxes = newDoc.querySelectorAll('input[type="checkbox"]');
+            const newTable = newDoc.getElementById('table-body');
+            const newPaginator = newDoc.getElementById('paginator');
+            numberOfPages = parseInt(newPaginator.dataset.numPages);
+            console.log(numberOfPages, selectedPageNumber)
+            // Update the pagination links
+            // Add event listeners to the new elements
+            addCheckBoxandSelectValues(newRow);
+            addEventListenersToSelect(newRow);
+            addEventListenerToCheckboxes(newCheckboxes);
+
+            // Replace the existing table and paginator with the new ones
+            const tableBody = document.getElementById('table-body');
+            const paginator = document.getElementById('paginator');
+
+            tableBody.replaceWith(newTable);
+            paginator.replaceWith(newPaginator)
+            console.log(newPaginator)
+            updatePaginationLinks(newPaginator);
+        })
+        .catch(error => {
+            console.error('Error fetching search results:', error);
+        });
+}
+
 
 modalSubmitBtn.addEventListener('click', (e) => {
+    loader.classList.remove('d-none')
     e.preventDefault()
-    // Send selected invoice numbers & transaction type to server using ajax
+///    // Send selected invoice numbers & transaction type to server using ajax
     $.ajax({
         type: 'POST',
         url: 'post-transactions/',
         data: {
             'csrfmiddlewaretoken': getCSRFToken(),
+            'transactions': JSON.stringify(combinedValues),
             'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
             'transaction_type': JSON.stringify(selectedTransactionType),
+            //'account_name':JSON.stringify(selectedAccountName)
         },
         dataType: 'json',
     }).then(res => {
-        console.log(res.stats)
+        loader.classList.add('d-none')
         if (res.stats !== 200) {
             Swal.fire({
                 icon: 'error',
@@ -358,27 +370,13 @@ modalSubmitBtn.addEventListener('click', (e) => {
 });
 
 processBtn.addEventListener('click', (e) => {
-    console.log("clicked");
-    e.preventDefault();
 
-    $.ajax({
-        type: 'POST',
-        url: 'search-invoices/',
-        data: {
-            'csrfmiddlewaretoken': getCSRFToken(),
-            'invoice_ids[]': JSON.stringify(selectedVendorsInvoiceNumber),
-        },
-        dataType: 'json',
-    }).then(transactions => {
-        console.log(transactions)
-        createTableBody(transactions.transaction_info, transactions.vendor_info, 'modal-table-body');
-        addEventListenersAndPopulateFields();
-    }).catch(err => console.log(err));
+    e.preventDefault();
+    createModalTableBody('modal-table-body');
 
 });
 
 // Add event listener to change page links
-
 
 function getCSRFToken() {
     let csrfToken = document.cookie.split('; ').find(row => row.startsWith('csrftoken')).split('=')[1];
@@ -388,131 +386,80 @@ function getCSRFToken() {
     return csrfToken;
 }
 
-function checkIfPageHasNextOrPreviousPage() {
-    if (selectedPageNumber === 1) {
-        previousPageLink.classList.add('d-none');
-        if (numberOfPages === 1) {
-            nextPageLink.classList.add('d-none');
-            firstPageLink.classList.add('d-none');
-            lastPageLink.classList.add('d-none');
-            previousPageLink.classList.add('d-none');
-        }
-    } else {
-        previousPageLink.classList.remove('d-none');
+function updatePaginationLinks(newDoc) {
+    const nextLink = newDoc.querySelector('#next')
+    if (nextLink) {
+        nextPageLink(nextLink)
     }
-
-    if (selectedPageNumber === numberOfPages) {
-        nextPageLink.classList.add('d-none');
-    } else {
-        nextPageLink.classList.remove('d-none');
+    const firstLink = newDoc.querySelector('#first')
+    if (firstLink) {
+        firstPageLink(firstLink)
     }
-}
-
-function nextPage() {
-    /**
-     *  Go to next page
-     */
-    if (selectedPageNumber !== numberOfPages) {
-        selectedPageNumber += 1;
+    const lastLink = newDoc.querySelector('#last')
+    if (lastLink) {
+        lastPageLink(lastLink)
     }
-
-    goToPage(`search/`, 'table-body');
-
-}
-
-function previousPage() {
-    /**
-     *  Go to previous page
-     */
-    if (selectedPageNumber !== 1) {
-        selectedPageNumber -= 1;
-    }
-
-    goToPage(`search/`, 'table-body');
-}
-
-function checkIfLastPage() {
-    /**
-     * Check If the selected page is the last page
-     * */
-
-    if (selectedPageNumber === numberOfPages) {
-        lastPageLink.classList.add('d-none');
-    } else {
-        lastPageLink.classList.remove('d-none');
-    }
-
-}
-
-function checkIfFirstPage() {
-    /**
-     * Check if the selected page is the first page
-     * */
-    if (selectedPageNumber === 1) {
-        firstPageLink.classList.add('d-none');
-    } else {
-        firstPageLink.classList.remove('d-none');
+    const previousLink = newDoc.querySelector('#previous')
+    if (previousLink) {
+        previousPageLink(previousLink)
     }
 }
 
-async function goToPage(url, tbody) {
-    /**
-     *  Get New Paginated Page Data, Pagination Page Number and Number of Pages
-     *  @param {String} url - URL to send ajax request to
-     *  @param {String} tbody - ID of table body element
-     */
-    currentPage.textContent = `Showing ${selectedPageNumber} of ${numberOfPages} Pages`;
-
-    checkIfFirstPage();
-    checkIfLastPage();
-    checkIfPageHasNextOrPreviousPage();
+async function goToPage() {
 
     try {
-        // Send ajax request to server to retrieve new paginated data
-        const res = await fetch(`${url}?search_params=${query_params[0]}&filter_options=${query_params[1]}&page_number=${selectedPageNumber}`);
-        const data = await res.json();
-        const transactionInfo = data.transaction_info;
-        const vendorInfo = data.vendor_info;
-
-        // Create new table body
-        createTableBody(transactionInfo, vendorInfo, tbody, 'goToPage Function');
-        // Get checkboxes
-        addEventListenersAndPopulateFields();
+        fetchSearchResults(query_params, selectedPageNumber)
     } catch (err) {
         console.log(err);
     }
 }
 
+function nextPageLink(nextLink) {
+    nextLink.addEventListener('click', (e) => {
+        if (hasClickedOnSearchBtn === true) {
+            e.preventDefault();
+            if (selectedPageNumber !== numberOfPages) {
+                selectedPageNumber += 1;
+            }
 
-nextPageLink.addEventListener('click', (e) => {
-    if (hasClickedOnSearchBtn === true) {
-        e.preventDefault();
-        nextPage();
-    }
-});
+            goToPage();
 
-previousPageLink.addEventListener('click', (e) => {
-    if (hasClickedOnSearchBtn === true) {
-        e.preventDefault();
-        previousPage();
-    }
-});
+        }
+    });
+}
 
-lastPageLink.addEventListener('click', (e) => {
-    if (hasClickedOnSearchBtn === true) {
-        e.preventDefault();
-        selectedPageNumber = numberOfPages;
-        goToPage(`search/`, 'table-body');
-    }
-});
+function previousPageLink(previousLink) {
+    previousLink.addEventListener('click', (e) => {
+        if (hasClickedOnSearchBtn === true) {
+            e.preventDefault();
+            if (selectedPageNumber !== 1) {
+                selectedPageNumber -= 1;
+            }
 
-firstPageLink.addEventListener('click', (e) => {
-    if (hasClickedOnSearchBtn === true) {
-        e.preventDefault();
-        selectedPageNumber = 1;
-        goToPage(`search/`, 'table-body');
-    }
-});
+            goToPage();
+        }
+    });
+}
+
+function lastPageLink(lastLink) {
+    lastLink.addEventListener('click', (e) => {
+        if (hasClickedOnSearchBtn === true) {
+            e.preventDefault();
+            selectedPageNumber = numberOfPages;
+            goToPage();
+        }
+    });
+}
+
+function firstPageLink(firstLink) {
+    firstLink.addEventListener('click', (e) => {
+        if (hasClickedOnSearchBtn === true) {
+            e.preventDefault();
+            selectedPageNumber = 1;
+            goToPage();
+        }
+    });
+}
 
 
 

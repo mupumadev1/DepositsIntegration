@@ -1,5 +1,5 @@
 from django.contrib.auth.base_user import BaseUserManager
-
+from django.contrib.auth.hashers import make_password
 
 
 class MyAbstractUserManager(BaseUserManager):
@@ -17,7 +17,8 @@ class MyAbstractUserManager(BaseUserManager):
             raise ValueError('The Username must be set')
 
         user = self.model(username=username)
-        user.set_password(password)
+        hashed_password = make_password(password)
+        user.set_password(hashed_password)
         user.save()
         return user
 
