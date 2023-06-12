@@ -21,6 +21,8 @@ class BankDetailsForm(ModelForm):
         self.fields['vendor_email'].label = "Vendor Email"
         self.fields['sort_code'].label = "Sort Code"
 
+
+
     def clean_vendor_id(self):
         try:
             vendor_id = self.cleaned_data.get('vendor_id')
@@ -30,27 +32,12 @@ class BankDetailsForm(ModelForm):
             else:
                 raise forms.ValidationError('No Vendor With That Vendor ID')
         except Exception as e:
-           print(e)
-    def clean_sort_code(self):
-        try:
-            sortcode = self.cleaned_data.get('sort_code')
-            resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}}, verify=False)
-            resp = resp.json()
-            found = False
-            sortc = resp['response']['bankList']
-            for sortc in sortc:
-                if f'{sortcode}' == sortc['sortCode']:
-                    found = True
-                    return sortcode
-            if not found:
-                raise forms.ValidationError('Sort Code Entered is invalid.')
-        except Exception as e:
-           print(e)
-
+            print(e)
 
     class Meta:
         model = BankDetails
-        fields = ['account_no','account_name','vendor_id',  'vendor_email','vendor_mobile_number','sort_code']
+        fields = ['account_no', 'account_name', 'vendor_id', 'vendor_email', 'vendor_mobile_number', 'bank_name',
+                  'branch', 'sort_code']
         error_messages = {
             'account_no': {
                 'required': 'Please enter the Account Number.',

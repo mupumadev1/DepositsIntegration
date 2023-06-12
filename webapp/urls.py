@@ -11,6 +11,8 @@ urlpatterns = [
     path('', views.UserLogin, name='login'),
     path('history/',views.transaction_history, name='transaction-history'),
     path('account_number/',views.checkAccNumber,name='check-account-number'),
+    path('bank_details/upload/verify_account/zicb/',views.zicb_customer_account_number_check),
+    path('bank_details/upload/verify_account/other/', views.other_bank_account_number_check),
     path('enter_otp/',views.enterOTP, name = 'enter-otp'),
     path('forgot_password',views.forgotPassword, name = 'forgot-password'),
     path('role/', views.checkUserRole),
@@ -25,6 +27,8 @@ urlpatterns = [
     path('search/', views.get_search_results, name='search-transactions'),
     path('post-transactions/', views.post_transactions, name='post-transactions'),
     path('logout',views.UserLogout, name='logout'),
-    path('search-invoices/', views.search_invoice_id, name='search-invoices')
+    path('search-invoices/', views.search_invoice_id, name='search-invoices'),
+    path('bank_details/upload/loadBanks/',views.loadBankList),
+    path('bank_details/delete/<str:acc_no>/', views.delete_vendor, name='delete'),
 
 ]

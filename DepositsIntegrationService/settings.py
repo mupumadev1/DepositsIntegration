@@ -38,7 +38,10 @@ INSTALLED_APPS = [
     'webapp.apps.WebappConfig',
     'widget_tweaks',
     'django_htmx',
+    'corsheaders',
 ]
+
+CORS_ORIGIN_ALLOW_ALL = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -49,11 +52,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "django_htmx.middleware.HtmxMiddleware",
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
-
-
-SESSION_COOKIE_AGE = 1200  # 5 minutes
+#SESSION_COOKIE_AGE = 1200  # 5 minutes
 
 # Set the session cookie secure flag if your site is served over HTTPS
 SESSION_COOKIE_SECURE = True

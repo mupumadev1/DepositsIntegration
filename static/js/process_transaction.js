@@ -12,8 +12,7 @@ let selectedPageNumber = 1;
 let numberOfPages = 0;
 let hasClickedOnSearchBtn = false;
 let query_params = [];
-let selectedTransactionType = {};
-
+let selectedTransactionType = {}
 
 let combinedValues = [];
 sessionStorage.clear();
@@ -22,6 +21,7 @@ addCheckBoxandSelectValues(rows);
 addEventListenerToCheckboxes(checkboxes);
 addEventListenerToAnchorTag();
 addEventListenersToSelect(rows)
+
 
 function addEventListenersToSelect(rows) {
     rows.forEach(row => {
@@ -177,7 +177,8 @@ function updateTransactionType(select) {
                         });
 
 
-                        };
+                    }
+                    ;
                 });
         })
 

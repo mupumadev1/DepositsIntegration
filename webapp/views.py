@@ -34,6 +34,20 @@ transaction_headers = {"Content-Type": "application/json; charset=utf-8", "authk
 def is_ajax(request):
     return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
 
+def delete_vendor(requst, acc_no):
+    vendor = BankDetails.objects.filter(account_no=acc_no).all()
+    if vendor:
+        vendor.delete()
+        return redirect('webapp:bank-details')
+def loadBankList(request):
+    resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
+                         verify=False)
+    resp = resp.json()
+    if resp['operation_status'] == 'SUCCESS':
+        resp = resp['response']['bankList']
+
+        return JsonResponse(resp, safe=False)
+
 
 def UserLogin(request):
     if request.method == 'POST':
@@ -42,15 +56,14 @@ def UserLogin(request):
             cif = request.POST["cif"]
             password = request.POST["password"]
             print(password)
-            user = authenticate(request, username=username, password=password,backend= 'webapp.myauthBackend.UserAuthBackend')
+            user = authenticate(request, username=username, password=password,
+                                backend='webapp.myauthBackend.UserAuthBackend')
             if user is not None:
                 if user.role == '001':
                     login(request, user)
                     return redirect('webapp:bank-details')
                 elif user.role == '002':
                     login(request, user)
-                elif user.is_admin:
-                    login(request,user)
 
                     json = {
                         "service": "CORE_BANKING_LOGIN",
@@ -85,8 +98,8 @@ def UserLogin(request):
                         messages.error(request, message=resp['response']['message'])
                         return redirect("webapp:login")
             else:
-                    messages.error(request, message="Username/Passowrd not registered")
-                    return redirect("webapp:login")
+                messages.error(request, message="Username/Passowrd not registered")
+                return redirect("webapp:login")
         except Exception as e:
             messages.error(request, message="An error occurred. Please try again.")
             print(str(e))
@@ -297,7 +310,7 @@ def bankUploadViaForm(request):
                 if request.htmx:
                     return render(request, 'account-details.html', {'form': form})
                 vendor = form.save(commit=False)
-                sort_code = form.clean_sort_code()
+                sort_code = form.cleaned_data.get('sort_code')
                 resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
                                      verify=False)
                 resp = resp.json()
@@ -305,10 +318,13 @@ def bankUploadViaForm(request):
                     resp = resp['response']['bankList']
                     for resp in resp:
                         if f'{sort_code}' == resp['sortCode']:
-                            bank_name = resp['bankName']
-                            branch = resp['branchDesc']
-                            vendor.bank_name = bank_name
-                            vendor.branch = branch
+                            bicCode = resp['bicCode']
+                            vendor.bicCode = bicCode
+                            vendor.save()
+                            return redirect('webapp:bank-details')
+                        else:
+                            bicCode = 'ZICB'
+                            vendor.bicCode = bicCode
                             vendor.save()
                             return redirect('webapp:bank-details')
                 else:
@@ -322,12 +338,13 @@ def bankUploadViaForm(request):
 def editBankUploadViaForm(request, acc_id):
     vendor = BankDetails.objects.filter(account_no=acc_id).first()
     form = BankDetailsForm(request.POST, instance=vendor)
+    print(vendor)
     if request.method == 'POST':
         if form.is_valid():
             if request.htmx:
                 return render(request, 'account-details.html', {'form': form})
             vendor = form.save(commit=False)
-            sort_code = form.clean_sort_code()
+            """sort_code = form.clean_sort_code()
             resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
                                  verify=False)
             resp = resp.json()
@@ -340,12 +357,12 @@ def editBankUploadViaForm(request, acc_id):
                         bicCode = resp['bicCode']
                         vendor.bank_name = bank_name
                         vendor.branch = branch
-                        vendor.bicCode = bicCode
-                        vendor.save()
-                        return redirect('webapp:bank-details')
-            else:
+                        vendor.bicCode = bicCode"""
+            vendor.save()
+            return redirect('webapp:bank-details')
+            """else:
                 messages.error(request, 'Error saving information, try again later')
-                return redirect('webapp:upload-bank-details')
+                return redirect('webapp:upload-bank-details')"""
         else:
             render(request, 'edit-vendor-bank.html',
                    {'form': BankDetailsForm(instance=vendor), 'acc_id': vendor.account_no})
@@ -400,7 +417,6 @@ def bankUploadCSV(request):
             branch = ''
             sort_code = row.sort_code
             bicCode = ''
-            print(row)
             resp = requests.post(url=URL, headers=transaction_headers, json={"service": "BNK9901", "request": {}},
                                  verify=False)
             resp = resp.json()
@@ -475,13 +491,11 @@ def bankUploadCSVTemplate(request):
 def forgotPassword(request):
     return render(request, 'forgot-password.html')
 
-
 def vendor_account_details(request):
     account_name = request.GET['account_name']
     data = BankDetails.objects.filter(account_name__icontains=account_name).values('account_no', 'sort_code', 'bicCode',
                                                                                    'bank_name')
     return JsonResponse({'account_details': list(data)}, status=200)
-
 
 def search_invoice_id(request):
     """ Search by idinvc in Request list and return JSON resposne if found """
@@ -509,7 +523,6 @@ def search_invoice_id(request):
     else:
         return JsonResponse({'message': 'Not a POST request'}, safe=False)
 
-
 @login_required(login_url='/')
 @user_is_approver
 def homepage(request):
@@ -522,8 +535,7 @@ def homepage(request):
                                                               not_(appym.IDINVC.in_(processed))).order_by(
         appym.CNTBTCH.desc()).all()
     batch_list = [batch.CNTBTCH for batch in payment_transactions_raw]
-    data = ms_session.query(aptcr).filter(aptcr.CNTBTCH.in_(batch_list))
-
+    data = ms_session.query(aptcr).filter(aptcr.CNTBTCH.in_(batch_list)).order_by(aptcr.CNTBTCH.desc()).all()
     for payment, record in zip(payment_transactions_raw, data):
         transactions = {
             'IDINVC': (payment.IDINVC).strip(),
@@ -535,9 +547,6 @@ def homepage(request):
         }
         payment_transactions.append(transactions)
 
-    # Strip whitespace from IDVEND field and add transactions to list
-
-    # Paginate the transaction list
     paginator = Paginator(payment_transactions, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -656,6 +665,46 @@ def transaction_history(request):
     return render(request, "transaction-history.html", context)
 
 
+def zicb_customer_account_number_check(request):
+    account_no = request.GET['account_no']
+    data = {
+        "service": "ZB0627",
+        "request": {
+            "accountNos": f"{account_no}"
+        }
+    }
+    response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": INFO_KEY},json=data, verify=False)
+    response = response.json()
+    account_list = response['response']['accountList']
+    print(account_list)
+    if account_list == []:
+        return JsonResponse({'response':False}, safe=False)
+    else:
+        return JsonResponse({'response': account_list}, safe=False)
+
+
+def other_bank_account_number_check(request):
+    account_no = request.GET['account_no']
+    serviceID = request.GET['serviceID']
+    data = {
+        "service": "MT002",
+        "request": {
+            "payload": {
+                "serviceID": f"{serviceID}",
+                "accountNumber": f"{account_no}",
+                "currencyCode": "ZMW",
+                "countryCode": "260"
+            }
+        }
+    }
+    response = requests.post(url=URL,
+                             headers={"Content-Type": "application/json; charset=utf-8", "authkey": INFO_KEY},
+                             json=data, verify=False)
+    response = response.json()
+    if response["response"]["results"]["statusDescription"] == "Account number provided is valid":
+        return response['response']['results']
+    else:
+        return False
 def checkAccNumber(request):
     acc = request.GET.get('acc_name')
     account_number = BankDetails.objects.filter(account_name__icontains=acc).values('account_no')
@@ -664,7 +713,7 @@ def checkAccNumber(request):
     data = {
         "service": "ZB0627",
         "request": {
-            "accountNos": f""
+            "accountNos": f"{acc_no}"
         }
     }
     response = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": INFO_KEY},
@@ -958,132 +1007,132 @@ def postZamtelTransfer(request, transaction):
 
 
 def postMTNTransfer(request, transaction):
-        data = {
-            "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
-            "request": {
-                "userName": f"{request.user.username}",
-                "customerId": "0036875",
-                "requestId": "STMBVERIFY",
-                "sourceAccount": "1010036875921",
-                "amount": f"{transaction['amount']}",
-                "srcCurrency": "ZMW",
-                "sourceBranch": "001",
-                "parentAccountType": "Mobile Money",
-                "serviceId": "4756",
-                "transferTyp": "CASHOUT",
-                "accountTyp": "MTN",
-                "receiverMobileNo": "260966855355",
-                "receiverEmail": "",
-                "remarks": f"{transaction['remarks']}"
-            }
+    data = {
+        "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
+        "request": {
+            "userName": f"{request.user.username}",
+            "customerId": "0036875",
+            "requestId": "STMBVERIFY",
+            "sourceAccount": "1010036875921",
+            "amount": f"{transaction['amount']}",
+            "srcCurrency": "ZMW",
+            "sourceBranch": "001",
+            "parentAccountType": "Mobile Money",
+            "serviceId": "4756",
+            "transferTyp": "CASHOUT",
+            "accountTyp": "MTN",
+            "receiverMobileNo": "260966855355",
+            "receiverEmail": "",
+            "remarks": f"{transaction['remarks']}"
         }
-        response = requests.post(url=URL,
-                                 headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
-                                 json=data, verify=False)
-        resp_json = response.json()
-        response = resp_json['response']
-        if "randomKey" not in response:
-            return resp_json['response']['message'], 500
-        else:
-            token = cache.get('session_token')
-            mtn_confirm_json = {
-                {
-                    "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
-                    "request": {
-                        "userName": f"{request.user.username}",
-                        "session_token": f"{token}",
-                        "sourceAccount": "1010036875921",
-                        "amount": f"{transaction['amount']}",
-                        "srcCurrency": "ZMW",
-                        "sourceBranch": "001",
-                        "parentAccountType": "Mobile Money",
-                        "serviceId": "4756",
-                        "transferTyp": "CASHOUT",
-                        "accountTyp": "MTN",
-                        "receiverMobileNo": "260966855355",
-                        "receiverEmail": "",
-                        "remarks": f"{transaction['remarks']}"
-                    }
+    }
+    response = requests.post(url=URL,
+                             headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
+                             json=data, verify=False)
+    resp_json = response.json()
+    response = resp_json['response']
+    if "randomKey" not in response:
+        return resp_json['response']['message'], 500
+    else:
+        token = cache.get('session_token')
+        mtn_confirm_json = {
+            {
+                "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
+                "request": {
+                    "userName": f"{request.user.username}",
+                    "session_token": f"{token}",
+                    "sourceAccount": "1010036875921",
+                    "amount": f"{transaction['amount']}",
+                    "srcCurrency": "ZMW",
+                    "sourceBranch": "001",
+                    "parentAccountType": "Mobile Money",
+                    "serviceId": "4756",
+                    "transferTyp": "CASHOUT",
+                    "accountTyp": "MTN",
+                    "receiverMobileNo": "260966855355",
+                    "receiverEmail": "",
+                    "remarks": f"{transaction['remarks']}"
                 }
             }
-        resp = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
-                             json=mtn_confirm_json, verify=False)
-        ft_resp_json = resp.json()
-        print(ft_resp_json)
-        if ft_resp_json['response']['message'] == "Fund Transfer initiated successfully":
-            processed = ProcessedDeposits(amount=transaction['amtpaym'], transaction_date=transaction['date'],
-                                          vendorid=transaction['account_name'],
-                                          invoiceid=transaction['invoice_id'],
-                                          vendorname=transaction['account_name'], status=1,
-                                          transaction_type="MTN CASHOUT", processed_by=request.user.username)
+        }
+    resp = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
+                         json=mtn_confirm_json, verify=False)
+    ft_resp_json = resp.json()
+    print(ft_resp_json)
+    if ft_resp_json['response']['message'] == "Fund Transfer initiated successfully":
+        processed = ProcessedDeposits(amount=transaction['amtpaym'], transaction_date=transaction['date'],
+                                      vendorid=transaction['account_name'],
+                                      invoiceid=transaction['invoice_id'],
+                                      vendorname=transaction['account_name'], status=1,
+                                      transaction_type="MTN CASHOUT", processed_by=request.user.username)
 
-            processed.save()
-            return ft_resp_json['response']['message'], 200
-        else:
-            return ft_resp_json['response']['message'], 500
+        processed.save()
+        return ft_resp_json['response']['message'], 200
+    else:
+        return ft_resp_json['response']['message'], 500
 
 
 def postAirtelTransfer(request, transaction):
-        data = {
-            "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
-            "request": {
-                "userName": f"{request.user.username}",
-                "customerId": "0036875",
-                "requestId": "STMBVERIFY",
-                "sourceAccount": "1010036875921",
-                "amount": f"{transaction['amount']}",
-                "srcCurrency": "ZMW",
-                "sourceBranch": "001",
-                "parentAccountType": "Mobile Money",
-                "serviceId": "4755",
-                "transferTyp": "CASHOUT",
-                "accountTyp": "AIRTEL",
-                "receiverMobileNo": "0978980412",
-                "receiverEmail": "",
-                "remarks": f"{transaction['remarks']}"
-            }
+    data = {
+        "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
+        "request": {
+            "userName": f"{request.user.username}",
+            "customerId": "0036875",
+            "requestId": "STMBVERIFY",
+            "sourceAccount": "1010036875921",
+            "amount": f"{transaction['amount']}",
+            "srcCurrency": "ZMW",
+            "sourceBranch": "001",
+            "parentAccountType": "Mobile Money",
+            "serviceId": "4755",
+            "transferTyp": "CASHOUT",
+            "accountTyp": "AIRTEL",
+            "receiverMobileNo": "0978980412",
+            "receiverEmail": "",
+            "remarks": f"{transaction['remarks']}"
         }
-        response = requests.post(url=URL,
-                                 headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
-                                 json=data, verify=False)
-        resp_json = response.json()
-        response = resp_json['response']
-        if "randomKey" not in response:
-            return resp_json['response']['message'], 500
-        else:
-            token = cache.get('session_token')
-            airtel_confirm_json = {
-                {
-                    "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
-                    "request": {
-                        "userName": f"{request.user.username}",
-                        "session_token": f"{token}",
-                        "sourceAccount": "1010036875921",
-                        "amount": f"{transaction['amount']}",
-                        "srcCurrency": "ZMW",
-                        "sourceBranch": "001",
-                        "parentAccountType": "Mobile Money",
-                        "serviceId": "4755",
-                        "transferTyp": "CASHOUT",
-                        "accountTyp": "AIRTEL",
-                        "receiverMobileNo": "0978980412",
-                        "receiverEmail": "",
-                        "remarks": f"{transaction['remarks']}"
-                    }
+    }
+    response = requests.post(url=URL,
+                             headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
+                             json=data, verify=False)
+    resp_json = response.json()
+    response = resp_json['response']
+    if "randomKey" not in response:
+        return resp_json['response']['message'], 500
+    else:
+        token = cache.get('session_token')
+        airtel_confirm_json = {
+            {
+                "service": "CORE_BANKING_MOBILE_MONEY_VERIFY",
+                "request": {
+                    "userName": f"{request.user.username}",
+                    "session_token": f"{token}",
+                    "sourceAccount": "1010036875921",
+                    "amount": f"{transaction['amount']}",
+                    "srcCurrency": "ZMW",
+                    "sourceBranch": "001",
+                    "parentAccountType": "Mobile Money",
+                    "serviceId": "4755",
+                    "transferTyp": "CASHOUT",
+                    "accountTyp": "AIRTEL",
+                    "receiverMobileNo": "0978980412",
+                    "receiverEmail": "",
+                    "remarks": f"{transaction['remarks']}"
                 }
             }
-        resp = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
-                             json=airtel_confirm_json, verify=False)
-        ft_resp_json = resp.json()
-        print(ft_resp_json)
-        if ft_resp_json['response']['message'] == "Fund Transfer initiated successfully":
-            processed = ProcessedDeposits(amount=transaction['amount'], transaction_date=transaction['date'],
-                                          vendorid=transaction['account_name'],
-                                          invoiceid=transaction['invoice_id'],
-                                          vendorname=transaction['account_name'], status=1,
-                                          transaction_type="Airtel CASHOUT", processed_by=request.user.username)
+        }
+    resp = requests.post(url=URL, headers={"Content-Type": "application/json; charset=utf-8", "authkey": IFT_KEY},
+                         json=airtel_confirm_json, verify=False)
+    ft_resp_json = resp.json()
+    print(ft_resp_json)
+    if ft_resp_json['response']['message'] == "Fund Transfer initiated successfully":
+        processed = ProcessedDeposits(amount=transaction['amount'], transaction_date=transaction['date'],
+                                      vendorid=transaction['account_name'],
+                                      invoiceid=transaction['invoice_id'],
+                                      vendorname=transaction['account_name'], status=1,
+                                      transaction_type="Airtel CASHOUT", processed_by=request.user.username)
 
-            processed.save()
-            return ft_resp_json['response']['message'], 200
-        else:
-            return ft_resp_json['response']['message'], 500
+        processed.save()
+        return ft_resp_json['response']['message'], 200
+    else:
+        return ft_resp_json['response']['message'], 500

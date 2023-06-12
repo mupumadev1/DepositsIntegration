@@ -27,20 +27,28 @@
                         <th scope="col">Bank Name</th>
                         <th scope="col">Sort Code</th>
                         <th scope="col">Branch Name</th>
+                        <th scope="col">Actions</th>
                     </tr>
                     </thead>
                     <tbody class="text-center" id="table-body">
                     {% if bank_details %}
                         {% for details in bank_details %}
                             <tr>
-                                <td><a href="{% url 'webapp:edit-bank-details' acc_id=details.account_no %}"
-                                       style="text-decoration: none;color: black;">{{ details.account_no }}</a></td>
+                                <td>{{ details.account_no }}</td>
                                 <td>{{ details.account_name }}</td>
                                 <td>{{ details.vendor_id }}</td>
                                 <td>{{ details.vendor_email }}</td>
                                 <td>{{ details.bank_name }}</td>
                                 <td id="vendor_acc">{{ details.sort_code }}</td>
                                 <td>{{ details.branch }}</td>
+                            <td>
+                                <a class="btn btn-sm text-white" href="{% url 'webapp:edit-bank-details' acc_id=details.account_no%}" style="background-color: #121271">
+                                    Edit
+                                </a>
+                                <a class="btn btn-dark btn-sm" href="{% url 'webapp:delete' acc_no=details.account_no %}">
+                                   Delete
+                                </a>
+                            </td>
                             </tr>
                         {% endfor %}
 

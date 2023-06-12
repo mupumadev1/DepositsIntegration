@@ -48,7 +48,7 @@ class BankDetails(models.Model):
     bank_name = models.CharField(max_length=255, verbose_name='Bank Name')
     sort_code = models.CharField(max_length=255, verbose_name='Sort Code')
     branch = models.CharField(max_length=255, verbose_name='Branch Name')
-    bicCode = models.CharField(max_length=355,verbose_name='BIC Code')
+    bicCode = models.CharField(max_length=355,verbose_name='BIC Code',null=True)
 
 class ProcessedDeposits(models.Model):
     invoiceid = models.CharField(max_length=255, blank=False, unique=True)
